@@ -1,8 +1,8 @@
 window.addEventListener('load', function(){
     const canvas = document.getElementById('canvas1');
     const ctx = canvas.getContext('2d');
-    canvas.width = 500;
-    canvas.height = 500;
+    canvas.width = window.innerWidth; 
+    canvas.height = window.innerHeight;
 
     class Vector {
         constructor(x, y) {
@@ -39,8 +39,9 @@ window.addEventListener('load', function(){
 
     class Player {
             constructor(game) {
-                this.position = new Vector(2, 15);
-                this.direction = new Vector(0.2, 0);
+                this.position = new Vector(game.width / 2, game.height / 2);
+                console.log(this.position);
+                this.direction = new Vector(0.0, 0.0);
                 this.game = game;
                 this.is_dead = false;
             }
@@ -53,7 +54,7 @@ window.addEventListener('load', function(){
                 // draw a triangle that points in the direction of this.direction
                 context.fillStyle = 'red';
                 
-                context.translate(this.position.x * 20, this.position.y * 20);
+                context.translate(this.position.x, this.position.y);
                 context.rotate(Math.atan2(this.direction.y, this.direction.x));
 
                 context.beginPath();
@@ -80,27 +81,23 @@ window.addEventListener('load', function(){
                 let newDirection = new Vector(0, 0);
                 switch(event.code) {
                     case 'ArrowLeft':
-                        newDirection = new Vector(-1, 0);
-                        break;
-                    case 'ArrowUp':
-                        newDirection = new Vector(0, -1);
-                        break;
-                    case 'ArrowRight':
-                        newDirection = new Vector(1, 0);
-                        break;
-                    case 'ArrowDown':
-                        newDirection = new Vector(0, 1);
                     case 'KeyA':
                         player.direction = player.direction.rotate(-15);
                         break;
+                    case 'ArrowRight':
                     case 'KeyD':
                         player.direction = player.direction.rotate(15);
                         break;
+                    case 'ArrowUp':
                     case 'KeyW':
                         player.direction = player.direction.multiply(1.2);
                         break;
+                    case 'ArrowDown':
                     case 'KeyS':
                         player.direction = player.direction.multiply(0.8);
+                        break;
+                    case 'Space':
+                        player.direction = new Vector(0.4, 0);
                         break;
                 }
             });
@@ -124,6 +121,7 @@ window.addEventListener('load', function(){
         }
     }
 
+    console.log(canvas.width, canvas.height);
     const game = new Game (canvas.width, canvas.height);
 
     let start, previousTimeStamp;
@@ -140,7 +138,7 @@ window.addEventListener('load', function(){
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Update game state
-        if ( elapsed > 150 ) {
+        if ( elapsed > 1 ) {
             game.update();
             start = ts;
         }
