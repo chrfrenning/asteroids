@@ -333,7 +333,7 @@ window.addEventListener('load', function(){
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Update game state
-        if ( elapsed > 1 ) {
+        if ( elapsed > 2 ) {
             game.update();
             start = ts;
         }
