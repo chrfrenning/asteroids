@@ -7,8 +7,16 @@
     <meta name="description" content="Control the spaceshift, shoot the asteroids. Retro, lo-fi game. Completely free and no ads.">
     <meta name="keywords" content="space, asteroids, game, meditative, simple, retro, free, no ads">
     <link rel="stylesheet" href="style.css">
+    <style>
+        @font-face {
+            font-family: 'RetroFont';
+            src: url('font.woff') format('woff');
+        }
+    </style>
 </head>
 <body>
+    <img id="asteroid" src="asteroid.png" style="display: none;">
+    <img id="spaceship" src="spaceship.png" style="display: none;">
     <canvas id="canvas1"> </canvas>
     <script src="script.js"></script>
 </body>
