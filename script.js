@@ -41,11 +41,11 @@ window.addEventListener('load', function(){
     class Projectile {
         constructor(position, direction) {
             this.position = position;
-            this.direction = direction.normalize().multiply(10); 
+            this.direction = direction.normalize().multiply(10);
         }
         
-        update() {
-            this.position = this.position.add( this.direction );
+        update(time) {
+            this.position = this.position.add( this.direction.multiply(time) );
         }        
 
         draw(context) {
@@ -67,20 +67,24 @@ window.addEventListener('load', function(){
             this.size = (Math.random() * 50 ) + 50;
         }
         
-        update() {
-            this.position = this.position.add( this.direction );
+        update(time) {
+            this.position = this.position.add( this.direction.multiply(time) );
             // if outside the game area, wrap around
             if (this.position.x < -this.size) {
                 this.position.x = canvas.width + this.size;
+                this.position.y = canvas.height - this.position.y;
             }
             if (this.position.x > canvas.width + this.size) {
                 this.position.x = -this.size;
+                this.position.y = canvas.height - this.position.y;
             }
             if ( this.position.y < -this.size ) {
                 this.position.y = canvas.height + this.size;
+                this.position.x = canvas.width - this.position.x;
             }
             if ( this.position.y > canvas.height + this.size ) {
                 this.position.y = -this.size;
+                this.position.x = canvas.width - this.position.x;
             }
         }        
 
@@ -106,24 +110,28 @@ window.addEventListener('load', function(){
             constructor(game) {
                 this.position = new Vector(game.width / 2, game.height / 2);
                 console.log(this.position);
-                this.direction = new Vector(0.4, 0.0);
+                this.direction = new Vector(2, 0.0);
                 this.game = game;
                 this.is_dead = false;
                 this.size = 10;
             }
 
-            update() {
-                this.position = this.position.add( this.direction );
+            update(time) {
+                this.position = this.position.add( this.direction.multiply(time) );
                 // if outside the game area, wrap around
                 if (this.position.x < 0) {
                     this.position.x = canvas.width;
+                    this.position.y = canvas.height - this.position.y;
                 } else if (this.position.x > canvas.width) {
                     this.position.x = 0;
+                    this.position.y = canvas.height - this.position.y;
                 }
                 if ( this.position.y < -this.size ) {
                     this.position.y = canvas.height + this.size;
+                    this.position.x = canvas.width - this.position.x;
                 } else if ( this.position.y > canvas.height + this.size ) {
                     this.position.y = -this.size;
+                    this.position.x = canvas.width - this.position.x;
                 }
 
             }
@@ -135,21 +143,11 @@ window.addEventListener('load', function(){
                 context.translate(this.position.x, this.position.y);
                 context.rotate(Math.atan2(this.direction.y, this.direction.x));
 
-                // context.beginPath();
-                
-                // context.moveTo(0, 0);
-                // context.lineTo(0, -10);
-                // context.lineTo(20, -5);
-                // context.fill();
-
                 let size = 50;
                 const player_sprite = document.getElementById('spaceship');
                 context.drawImage(player_sprite, -size/2, -size/2, size, size);
 
                 context.resetTransform();
-
-                //context.fillStyle = 'yellow';
-                //context.fillRect(this.position.x * 20, this.position.y * 20, 20, 20);
             }
 
             isDead() {
@@ -162,11 +160,28 @@ window.addEventListener('load', function(){
             this.game = game;
             this.player = player;
             this.keysPressed = {};
-            this.counter = 0;
 
             document.addEventListener('keydown', (event) => {
-                console.log(event.key + " down");
-                this.keysPressed[event.code] = true;
+                switch(event.code) {
+                    case 'ArrowUp':
+                    case 'KeyW':
+                        this.player.direction = this.player.direction.multiply(1.25);
+                        break;
+                    case 'ArrowDown':
+                    case 'KeyS':
+                        this.player.direction = this.player.direction.multiply(0.75);
+                        break; 
+                    case 'Space':
+                        this.game.projectiles.push( new Projectile(this.player.position, this.player.direction) );
+                        break;
+                    case 'ArrowLeft':
+                    case 'KeyA':
+                    case 'ArrowRight':
+                    case 'KeyD':
+                        //console.log(event.key + " down"); 
+                        this.keysPressed[event.code] = true;
+                }
+                
             });
 
             document.addEventListener('keyup', (event) => {
@@ -175,34 +190,21 @@ window.addEventListener('load', function(){
             });
         }
 
-        update() {
-            let rotationStep = 5;
+        update(time) {
+            let rotationStep = 15;
             let shootSpeed = 9;
             for (let key in this.keysPressed) {
-                console.log("checking " + key);
+                //console.log("checking " + key);
                 if (this.keysPressed[key]) {
-                    console.log(key + " is pressed");
+                    //console.log(key + " is pressed");
                     switch(key) {
                         case 'ArrowLeft':
                         case 'KeyA':
-                            this.player.direction = this.player.direction.rotate(-rotationStep);
+                            this.player.direction = this.player.direction.rotate(-rotationStep * time);
                             break;
                         case 'ArrowRight':
                         case 'KeyD':
-                            this.player.direction = this.player.direction.rotate(rotationStep);
-                            break;
-                        case 'ArrowUp':
-                        case 'KeyW':
-                            this.player.direction = this.player.direction.multiply(1.2);
-                            break;
-                        case 'ArrowDown':
-                        case 'KeyS':
-                            this.player.direction = this.player.direction.multiply(0.8);
-                            break; 
-                        case 'Space':
-                            this.counter++;
-                            if ( this.counter % shootSpeed == 0 )
-                                this.game.projectiles.push( new Projectile(this.player.position, this.player.direction) );
+                            this.player.direction = this.player.direction.rotate(rotationStep * time);
                             break;
                     }
                 }
@@ -219,8 +221,9 @@ window.addEventListener('load', function(){
             this.projectiles = [];
             this.asteroids = [];
             this.score = 0;
+
             // Create asteroids
-            let numberOfAsteroids = 20;
+            let numberOfAsteroids = 2;
             for (let i = 0; i < numberOfAsteroids; i++) {
                 this.createAsteroid();
             }
@@ -229,7 +232,7 @@ window.addEventListener('load', function(){
         createAsteroid(){
             let x = Math.random() * this.width;
             let y = Math.random() * this.height;
-            let direction = new Vector(Math.random(), Math.random()).multiply(Math.random());
+            let direction = new Vector(2, 2).multiply(Math.random());
             // move the asteroid outside the screen boundary
             if (Math.random() < 0.5) {
                 if (Math.random() < 0.5) {
@@ -247,14 +250,14 @@ window.addEventListener('load', function(){
             this.asteroids.push( new Asteroid(new Vector(x, y), direction) );
         }
 
-        update() {
-            this.input.update();
-            this.player.update();
+        update(time) {
+            this.input.update(time);
+            this.player.update(time);
             for (let i = 0; i < this.projectiles.length; i++) {
-                this.projectiles[i].update();
+                this.projectiles[i].update(time);
             }
             for (let i = 0; i < this.asteroids.length; i++) {
-                this.asteroids[i].update();
+                this.asteroids[i].update(time);
             }
             // check if any projectile hits any asteroid
             for (let i = 0; i < this.projectiles.length; i++) {
@@ -273,6 +276,14 @@ window.addEventListener('load', function(){
                     }
                 }
             }
+            // remove all projectils that are outside the game area
+            for (let i = 0; i < this.projectiles.length; i++) {
+                if (this.projectiles[i].position.x < 0 || this.projectiles[i].position.x > this.width ||
+                    this.projectiles[i].position.y < 0 || this.projectiles[i].position.y > this.height) {
+                    this.projectiles.splice(i, 1);
+                    i--;
+                }
+            }             
             // check if player hits any asteroid
             for (let j = 0; j < this.asteroids.length; j++) {
                 let dx = this.player.position.x - this.asteroids[j].position.x;
@@ -317,13 +328,14 @@ window.addEventListener('load', function(){
     }
 
     console.log(canvas.width, canvas.height);
-    const game = new Game (canvas.width, canvas.height);
+    const game = new Game( canvas.width, canvas.height );
 
     let start, previousTimeStamp;
 
     function gameLoop(ts) {
         if ( start === undefined ) {
             start = ts;
+            previousTimeStamp = ts;
         }
         const elapsed = ts - start;
         const delta = ts - previousTimeStamp;
@@ -333,8 +345,8 @@ window.addEventListener('load', function(){
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Update game state
-        if ( elapsed > 2 ) {
-            game.update();
+        if ( 1 ) {
+            game.update(delta / 50);
             start = ts;
         }
 
