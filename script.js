@@ -130,7 +130,7 @@ window.addEventListener('load', function(){
                 this.last_shot = Math.floor(Date.now() / 1000);
             } else {
                 // if less than one second ago, don't shoot
-                if ( Math.floor(Date.now() / 1000) - this.last_shot < 1 )
+                if ( Math.floor(Date.now() / 1000) - this.last_shot < 2 )
                     return;
 
                 // shoot at player
@@ -138,7 +138,7 @@ window.addEventListener('load', function(){
 
                     let direction = game.player.position.subtract(this.position).normalize().multiply(5);
                     // randomly miss
-                    if (Math.random() < 0.2) {
+                    if (Math.random() < 0.4) {
                         direction = direction.rotate((Math.random() - 0.5) * 90);
                     }
                     game.projectiles.push( new Projectile(this.position, direction, false) );
@@ -160,20 +160,24 @@ window.addEventListener('load', function(){
             context.translate(this.position.x, this.position.y);
             
             context.fillStyle = 'green';
-            // reduce the intensity of the shield color
-            context.globalAlpha = this.shield;
             //context.drawImage(astroid_sprite, 0, 0, this.size, this.size);
             context.beginPath();
             context.arc(0, 0, this.size, 0, Math.PI * 2);
             context.fill();
 
+            // draw shield number of blue rings around the saucer
+            context.strokeStyle = 'blue';
+            for (let i = 0; i < this.shield; i++) {
+                context.beginPath();
+                context.arc(0, 0, this.size + i * 2, 0, Math.PI * 2);
+                context.stroke();
+            }
+
             // draw a number to show shield strength
             context.fillStyle = 'white';
             context.font = '20px RetroFont';
             let tw = context.measureText(this.shield).width;
-            context.fillText(this.shield, (this.size / 2) - (tw / 2), 10);
-
-
+            context.fillText(this.shield, (this.size / 2) - (tw), 10);
 
             context.resetTransform();
         }
@@ -288,7 +292,7 @@ window.addEventListener('load', function(){
 
             // Create saucer
             this.saucers = [];
-            let numberOfSaucers = 1;
+            let numberOfSaucers = 2;
             for (let i = 0; i < numberOfSaucers; i++) {
                 this.createSaucer();
             }
@@ -354,11 +358,17 @@ window.addEventListener('load', function(){
                     let dy = this.projectiles[i].position.y - this.asteroids[j].position.y;
                     let distance = Math.sqrt(dx * dx + dy * dy);
                     if (distance < this.asteroids[j].size) {
+                        let friendly = this.projectiles[i].friendly;
+
                         this.projectiles.splice(i, 1);
                         this.asteroids.splice(j, 1);
+
                         i--;
                         j--;
-                        this.score++;
+
+                        if ( friendly )
+                            this.score++;
+
                         this.createAsteroid();
                         break;
                     }
