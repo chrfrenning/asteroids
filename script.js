@@ -106,6 +106,7 @@ window.addEventListener('load', function(){
             context.fillStyle = 'brown';
                     
             context.translate(this.position.x, this.position.y);
+            context.translate(-this.size / 2, -this.size / 2);
             context.drawImage(astroid_sprite, 0, 0, this.size, this.size);
             context.resetTransform();
         }
@@ -158,6 +159,7 @@ window.addEventListener('load', function(){
             //const astroid_sprite = document.getElementById('asteroid');
             
             context.translate(this.position.x, this.position.y);
+            context.translate(-this.size / 2, -this.size / 2);
             
             context.fillStyle = 'green';
             //context.drawImage(astroid_sprite, 0, 0, this.size, this.size);
@@ -205,6 +207,7 @@ window.addEventListener('load', function(){
                 context.fillStyle = 'red';
                 
                 context.translate(this.position.x, this.position.y);
+                context.translate(-this.size / 2, -this.size / 2);
                 context.rotate(Math.atan2(this.direction.y, this.direction.x));
 
                 let size = 50;
