@@ -14,6 +14,10 @@ window.addEventListener('load', function(){
             return new Vector(this.x + rhs.x, this.y + rhs.y);
         }
 
+        subtract(rhs) {
+            return new Vector(this.x - rhs.x, this.y - rhs.y);
+        }
+
         multiply(scalar) {
             return new Vector(this.x * scalar, this.y * scalar);
         }
@@ -38,19 +42,43 @@ window.addEventListener('load', function(){
         }
     }
 
+    function wrapIfOutside( vector, size = 0, cnvas = canvas ) {
+        let v = new Vector(vector.x, vector.y);
+
+        if (v.x < -size) {
+            v.x = cnvas.width + size;
+            v.y = cnvas.height - v.y;
+        }
+        if (v.x > cnvas.width + size) {
+            v.x = -size;
+            v.y = cnvas.height - v.y;
+        }
+        if ( v.y < -size ) {
+            v.y = cnvas.height + size;
+            v.x = cnvas.width - v.x;
+        }
+        if ( v.y > cnvas.height + size ) {
+            v.y = -size;
+            v.x = cnvas.width - v.x;
+        }
+
+        return v;
+    }
+
     class Projectile {
-        constructor(position, direction) {
+        constructor(position, direction, friendly = true) {
             this.position = position;
-            this.direction = direction.normalize().multiply(10);
+            this.direction = direction.add( direction.normalize().multiply(10) );
+            this.friendly = friendly;
         }
         
         update(time) {
             this.position = this.position.add( this.direction.multiply(time) );
-        }        
+        }
 
         draw(context) {
-            context.fillStyle = 'yellow';
-                    
+            context.fillStyle = this.friendly ? 'yellow' : 'red';
+            
             context.translate(this.position.x, this.position.y);
             context.beginPath();
             context.arc(0, 0, 5, 0, Math.PI * 2);
@@ -69,37 +97,83 @@ window.addEventListener('load', function(){
         
         update(time) {
             this.position = this.position.add( this.direction.multiply(time) );
-            // if outside the game area, wrap around
-            if (this.position.x < -this.size) {
-                this.position.x = canvas.width + this.size;
-                this.position.y = canvas.height - this.position.y;
-            }
-            if (this.position.x > canvas.width + this.size) {
-                this.position.x = -this.size;
-                this.position.y = canvas.height - this.position.y;
-            }
-            if ( this.position.y < -this.size ) {
-                this.position.y = canvas.height + this.size;
-                this.position.x = canvas.width - this.position.x;
-            }
-            if ( this.position.y > canvas.height + this.size ) {
-                this.position.y = -this.size;
-                this.position.x = canvas.width - this.position.x;
-            }
+            this.position = wrapIfOutside(this.position, this.size);
         }        
 
         draw(context) {
             const astroid_sprite = document.getElementById('asteroid');
             
-
             context.fillStyle = 'brown';
                     
             context.translate(this.position.x, this.position.y);
-            //context.beginPath();
-            //context.arc(0, 0, this.size, 0, Math.PI * 2);
-
             context.drawImage(astroid_sprite, 0, 0, this.size, this.size);
-            //context.fill();
+            context.resetTransform();
+        }
+
+    }
+
+    class Saucer {
+        constructor(game, position, direction) {
+            this.position = position;
+            this.direction = direction.multiply(5);
+            this.size = (Math.random() * 10 ) + 25;
+            this.counter = 0;
+            this.last_shosts = 0;
+            this.shield = 10;
+        }
+        
+        update(time) {
+            this.position = this.position.add( this.direction.multiply(time) );
+            this.position = wrapIfOutside(this.position, this.size);
+
+            if ( this.last_shot == 0 ) {
+                this.last_shot = Math.floor(Date.now() / 1000);
+            } else {
+                // if less than one second ago, don't shoot
+                if ( Math.floor(Date.now() / 1000) - this.last_shot < 1 )
+                    return;
+
+                // shoot at player
+                if (Math.random() < 0.01) {
+
+                    let direction = game.player.position.subtract(this.position).normalize().multiply(5);
+                    // randomly miss
+                    if (Math.random() < 0.2) {
+                        direction = direction.rotate((Math.random() - 0.5) * 90);
+                    }
+                    game.projectiles.push( new Projectile(this.position, direction, false) );
+
+                    // record time of last shot
+                    this.last_shot = Math.floor(Date.now() / 1000);
+                }
+            }
+
+            // go after player?
+            if ( this.counter++ % 100 == 0 && Math.random() < 0.7 ) {
+                this.direction = game.player.position.subtract(this.position).normalize().multiply(5);
+            }
+        }        
+
+        draw(context) {
+            //const astroid_sprite = document.getElementById('asteroid');
+            
+            context.translate(this.position.x, this.position.y);
+            
+            context.fillStyle = 'green';
+            // reduce the intensity of the shield color
+            context.globalAlpha = this.shield;
+            //context.drawImage(astroid_sprite, 0, 0, this.size, this.size);
+            context.beginPath();
+            context.arc(0, 0, this.size, 0, Math.PI * 2);
+            context.fill();
+
+            // draw a number to show shield strength
+            context.fillStyle = 'white';
+            context.font = '20px RetroFont';
+            let tw = context.measureText(this.shield).width;
+            context.fillText(this.shield, (this.size / 2) - (tw / 2), 10);
+
+
 
             context.resetTransform();
         }
@@ -118,22 +192,7 @@ window.addEventListener('load', function(){
 
             update(time) {
                 this.position = this.position.add( this.direction.multiply(time) );
-                // if outside the game area, wrap around
-                if (this.position.x < 0) {
-                    this.position.x = canvas.width;
-                    this.position.y = canvas.height - this.position.y;
-                } else if (this.position.x > canvas.width) {
-                    this.position.x = 0;
-                    this.position.y = canvas.height - this.position.y;
-                }
-                if ( this.position.y < -this.size ) {
-                    this.position.y = canvas.height + this.size;
-                    this.position.x = canvas.width - this.position.x;
-                } else if ( this.position.y > canvas.height + this.size ) {
-                    this.position.y = -this.size;
-                    this.position.x = canvas.width - this.position.x;
-                }
-
+                this.position = wrapIfOutside(this.position, this.size);
             }
 
             draw(context) {
@@ -165,11 +224,11 @@ window.addEventListener('load', function(){
                 switch(event.code) {
                     case 'ArrowUp':
                     case 'KeyW':
-                        this.player.direction = this.player.direction.multiply(1.25);
+                        this.player.direction = this.player.direction.add( this.player.direction.normalize() );
                         break;
                     case 'ArrowDown':
                     case 'KeyS':
-                        this.player.direction = this.player.direction.multiply(0.75);
+                        this.player.direction = this.player.direction.subtract( this.player.direction.normalize() );
                         break; 
                     case 'Space':
                         this.game.projectiles.push( new Projectile(this.player.position, this.player.direction) );
@@ -185,14 +244,13 @@ window.addEventListener('load', function(){
             });
 
             document.addEventListener('keyup', (event) => {
-                console.log(event.key + " up");
+                //console.log(event.key + " up");
                 this.keysPressed[event.code] = false;
             });
         }
 
         update(time) {
-            let rotationStep = 15;
-            let shootSpeed = 9;
+            let rotationStep = 10;
             for (let key in this.keysPressed) {
                 //console.log("checking " + key);
                 if (this.keysPressed[key]) {
@@ -212,7 +270,7 @@ window.addEventListener('load', function(){
         }
     }
 
-    class Game{
+    class Game {
         constructor(width, height){
             this.width = width;
             this.height = height;
@@ -223,42 +281,72 @@ window.addEventListener('load', function(){
             this.score = 0;
 
             // Create asteroids
-            let numberOfAsteroids = 2;
+            let numberOfAsteroids = 20;
             for (let i = 0; i < numberOfAsteroids; i++) {
                 this.createAsteroid();
+            }
+
+            // Create saucer
+            this.saucers = [];
+            let numberOfSaucers = 1;
+            for (let i = 0; i < numberOfSaucers; i++) {
+                this.createSaucer();
             }
         }
 
         createAsteroid(){
             let x = Math.random() * this.width;
             let y = Math.random() * this.height;
-            let direction = new Vector(2, 2).multiply(Math.random());
+
             // move the asteroid outside the screen boundary
             if (Math.random() < 0.5) {
                 if (Math.random() < 0.5) {
-                    x = -100;
+                    x -= this.width;
                 } else {
-                    x = this.width + 100;
+                    x += this.width;
                 }
             } else {
                 if (Math.random() < 0.5) {
-                    y = -100;
+                    y -= this.height;
                 } else {
-                    y = this.height + 100;
+                    y += this.height;
                 }
             }
-            this.asteroids.push( new Asteroid(new Vector(x, y), direction) );
+
+            let position = new Vector(x, y);
+
+            // calculate direction towards the center of the screen
+            let direction = new Vector(this.width / 2, this.height / 2).subtract(position).normalize().multiply(1.5).multiply(Math.random());
+            direction = direction.rotate(Math.random() * 360);
+
+            this.asteroids.push( new Asteroid(position, direction) );
         }
+
+        createSaucer() {
+            let position = new Vector(Math.random() * this.width, Math.random() * this.height);
+
+            // calculate direction towards the center of the screen
+            let direction = new Vector(this.width / 2, this.height / 2).subtract(position).normalize().multiply(1.5).multiply(Math.random());
+            direction = direction.rotate(Math.random() * 360);
+
+            this.saucers.push( new Saucer(this, position, direction) );
+        }
+
 
         update(time) {
             this.input.update(time);
             this.player.update(time);
+
             for (let i = 0; i < this.projectiles.length; i++) {
                 this.projectiles[i].update(time);
             }
             for (let i = 0; i < this.asteroids.length; i++) {
                 this.asteroids[i].update(time);
             }
+            for (let i = 0; i < this.saucers.length; i++) {
+                this.saucers[i].update(time);
+            }
+
             // check if any projectile hits any asteroid
             for (let i = 0; i < this.projectiles.length; i++) {
                 for (let j = 0; j < this.asteroids.length; j++) {
@@ -276,20 +364,72 @@ window.addEventListener('load', function(){
                     }
                 }
             }
-            // remove all projectils that are outside the game area
+
+            // check if any non-friendly projectile hit the spaceship
+            for (let i = 0; i < this.projectiles.length; i++) {
+                if (this.projectiles[i].friendly) {
+                    continue;
+                }
+
+                let dx = this.projectiles[i].position.x - this.player.position.x;
+                let dy = this.projectiles[i].position.y - this.player.position.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < this.player.size) {
+                    this.player.is_dead = true;
+                    break;
+                }
+            }
+
+            // check if any friendly projectiles hit any saucer
+            for (let i = 0; i < this.projectiles.length; i++) {
+                if (!this.projectiles[i].friendly) {
+                    continue;
+                }
+
+                for (let j = 0; j < this.saucers.length; j++) {
+                    let dx = this.projectiles[i].position.x - this.saucers[j].position.x;
+                    let dy = this.projectiles[i].position.y - this.saucers[j].position.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < this.saucers[j].size) {
+                        this.projectiles.splice(i, 1);
+                        this.saucers[j].shield -= 1;
+                        if (this.saucers[j].shield <= 0) {
+                            this.saucers.splice(j, 1);
+                            this.score += 10;
+                            this.createSaucer();
+                        }
+                        i--;
+                        break;
+                    }
+                }
+            }
+
+            // remove all projectiles that are outside the game area
             for (let i = 0; i < this.projectiles.length; i++) {
                 if (this.projectiles[i].position.x < 0 || this.projectiles[i].position.x > this.width ||
                     this.projectiles[i].position.y < 0 || this.projectiles[i].position.y > this.height) {
                     this.projectiles.splice(i, 1);
                     i--;
                 }
-            }             
+            }
+            
             // check if player hits any asteroid
             for (let j = 0; j < this.asteroids.length; j++) {
                 let dx = this.player.position.x - this.asteroids[j].position.x;
                 let dy = this.player.position.y - this.asteroids[j].position.y;
                 let distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance < this.asteroids[j].size) {
+                    this.player.is_dead = true;
+                    break;
+                }
+            }
+
+            // check if player hits any saucer
+            for (let j = 0; j < this.saucers.length; j++) {
+                let dx = this.player.position.x - this.saucers[j].position.x;
+                let dy = this.player.position.y - this.saucers[j].position.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < this.saucers[j].size) {
                     this.player.is_dead = true;
                     break;
                 }
@@ -304,6 +444,9 @@ window.addEventListener('load', function(){
             for (let i = 0; i < this.asteroids.length; i++) {
                 this.asteroids[i].draw(context);
             }
+            for (let i = 0; i < this.saucers.length; i++) {
+                this.saucers[i].draw(context);
+            }
             this.drawScore(context, this.score);
             if (this.player.isDead()) {
                 context.fillStyle = 'white';
@@ -316,7 +459,6 @@ window.addEventListener('load', function(){
                 const text2 = 'Hit refresh to try again';
                 const textWidth2 = context.measureText(text2).width;
                 context.fillText(text2, (canvas.width / 2) - (textWidth2 / 2), canvas.height / 2 + 50);
-                
             }
         }
 
