@@ -192,6 +192,7 @@ window.addEventListener('load', function(){
                 this.game = game;
                 this.is_dead = false;
                 this.size = 10;
+                this.shield = 10;
             }
 
             update(time) {
@@ -209,6 +210,14 @@ window.addEventListener('load', function(){
                 let size = 50;
                 const player_sprite = document.getElementById('spaceship');
                 context.drawImage(player_sprite, -size/2, -size/2, size, size);
+
+                // draw shield number of blue rings around the player
+                context.strokeStyle = 'blue';
+                for (let i = 0; i < this.shield; i++) {
+                    context.beginPath();
+                    context.arc(0, 0, size / 2 + i * 2, 0, Math.PI * 2);
+                    context.stroke();
+                }
 
                 context.resetTransform();
             }
@@ -385,7 +394,11 @@ window.addEventListener('load', function(){
                 let dy = this.projectiles[i].position.y - this.player.position.y;
                 let distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance < this.player.size) {
-                    this.player.is_dead = true;
+                    this.player.shield -= 1;
+                    if (this.player.shield <= 0) {
+                        this.player.is_dead = true;
+                    }
+                    this.projectiles.splice(i, 1);
                     break;
                 }
             }
@@ -405,7 +418,7 @@ window.addEventListener('load', function(){
                         this.saucers[j].shield -= 1;
                         if (this.saucers[j].shield <= 0) {
                             this.saucers.splice(j, 1);
-                            this.score += 10;
+                            this.score += 100;
                             this.createSaucer();
                         }
                         i--;
@@ -473,9 +486,17 @@ window.addEventListener('load', function(){
         }
 
         drawScore(context, score) {
+            const textpos_y = 45;
+
             context.fillStyle = 'white';
             context.font = '40px RetroFont';
-            context.fillText('Score: ' + score, 10, 45);
+            context.fillText('Score: ' + score, 10, textpos_y);
+
+            context.fillStyle = 'white';
+            context.font = '40px RetroFont';
+            let string = 'Shield: ' + this.player.shield;
+            let tw = context.measureText(string).width;
+            context.fillText('Shield: ' + this.player.shield, (canvas.width - 10) - tw, textpos_y);
         }
     }
 
