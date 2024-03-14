@@ -4,7 +4,8 @@ window.addEventListener('load', function(){
     canvas.width = window.innerWidth; 
     canvas.height = window.innerHeight;
     let constantspeedmode = false;
-    let drawmarkers = true;
+    let drawmarkers = false;
+    let drawdistancevecs = false;
     let started = false;
 
     class Vector {
@@ -118,13 +119,15 @@ window.addEventListener('load', function(){
             context.fillStyle = 'brown';
                     
             context.translate(this.position.x, this.position.y);
-            context.translate(-this.size / 2, -this.size / 2);
+            //context.translate(-this.size / 2, -this.size / 2);
 
             if ( drawmarkers) {
+                context.globalAlpha = 0.3;
                 context.fillStyle = 'white';
                 context.beginPath();
                 context.arc(0, 0, this.size/2, 0, Math.PI * 2);
                 context.fill();
+                context.globalAlpha = 1;
             }
             if ( this.crashed ) {
                 context.fillStyle = 'red';
@@ -202,7 +205,7 @@ window.addEventListener('load', function(){
             //const astroid_sprite = document.getElementById('asteroid');
             
             context.translate(this.position.x, this.position.y);
-            context.translate(-this.size / 2, -this.size / 2);
+            //context.translate(-this.size / 2, -this.size / 2);
             
             context.fillStyle = 'green';
             //context.drawImage(astroid_sprite, 0, 0, this.size, this.size);
@@ -284,7 +287,43 @@ window.addEventListener('load', function(){
                     context.fill();
                 }
 
+                if ( drawdistancevecs ) {
+
+                    context.strokeStyle = 'white';
+                    context.globalAlpha = 0.3;
+
+                    context.resetTransform();
+                    context.translate(this.position.x, this.position.y);
+                    //context.moveTo(this.position.x, this.position.y);
+
+                    // loop over all asteroids and draw distance vectors
+                    for (let i = 0; i < this.game.asteroids.length; i++) {
+                        this.drawDistanceVector(context, this.game.asteroids[i].position.subtract(this.position));
+                    }
+
+                    // loop over all saucers and draw distance vectors
+                    for (let i = 0; i < this.game.saucers.length; i++) {
+                        this.drawDistanceVector(context, this.game.saucers[i].position.subtract(this.position));
+                    }
+
+                    context.globalAlpha = 1;
+    
+                }
+
                 context.resetTransform();
+            }
+
+            drawDistanceVector(context, vector) {
+                context.beginPath();
+                
+                context.moveTo(0,0);
+                context.lineTo(vector.x, vector.y);
+                context.stroke();
+
+                // draw number with length on the middle of the vector line
+                // context.fillStyle = 'white';
+                // context.font = '20px RetroFont';
+
             }
 
             isDead() {
