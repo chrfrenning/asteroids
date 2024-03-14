@@ -3,6 +3,9 @@ window.addEventListener('load', function(){
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth; 
     canvas.height = window.innerHeight;
+    let constantspeedmode = false;
+    let drawmarkers = true;
+    let started = false;
 
     class Vector {
         constructor(x, y) {
@@ -34,6 +37,10 @@ window.addEventListener('load', function(){
 
         get length() {
             return Math.sqrt(this.x * this.x + this.y * this.y);
+        }
+
+        distanceTo(rhs) {
+            return Math.sqrt((this.x - rhs.x) * (this.x - rhs.x) + (this.y - rhs.y) * (this.y - rhs.y));
         }
 
         normalize() {
@@ -92,7 +99,8 @@ window.addEventListener('load', function(){
         constructor(position, direction) {
             this.position = position;
             this.direction = direction.multiply(5);
-            this.size = (Math.random() * 50 ) + 50;
+            this.size = (Math.random() * 100 ) + 25;
+            this.crashed = false;
         }
         
         update(time) {
@@ -102,12 +110,38 @@ window.addEventListener('load', function(){
 
         draw(context) {
             const astroid_sprite = document.getElementById('asteroid');
+
+            // find the size of the asteroid image w, h
+            let w = astroid_sprite.width;
+            let h = astroid_sprite.height;
             
             context.fillStyle = 'brown';
                     
             context.translate(this.position.x, this.position.y);
             context.translate(-this.size / 2, -this.size / 2);
-            context.drawImage(astroid_sprite, 0, 0, this.size, this.size);
+
+            if ( drawmarkers) {
+                context.fillStyle = 'white';
+                context.beginPath();
+                context.arc(0, 0, this.size/2, 0, Math.PI * 2);
+                context.fill();
+            }
+            if ( this.crashed ) {
+                context.fillStyle = 'red';
+                context.beginPath();
+                context.arc(0, 0, this.size/2, 0, Math.PI * 2);
+                context.fill();
+            }
+
+            context.drawImage(astroid_sprite, -this.size/2, -this.size/2, this.size, this.size);
+
+            if ( drawmarkers ) {
+                context.fillStyle = 'yellow';
+                context.beginPath();
+                context.arc(0, 0, 2, 0, Math.PI * 2);
+                context.fill();
+            }
+
             context.resetTransform();
         }
 
@@ -153,6 +187,15 @@ window.addEventListener('load', function(){
             if ( this.counter++ % 100 == 0 && Math.random() < 0.7 ) {
                 this.direction = game.player.position.subtract(this.position).normalize().multiply(5);
             }
+
+            // make an evasive maneuver if too close to player
+            // if ( 1 ) { // this.counter % 100 == 0 && Math.random() < 0.3 ) {
+            //     if ( game.player.position.subtract(this.position).length < 200 ) {
+            //         if ( Math.random() < 0.8 ) {
+            //             this.direction = this.direction.rotate(90);
+            //         }
+            //     }
+            // }
         }        
 
         draw(context) {
@@ -176,10 +219,17 @@ window.addEventListener('load', function(){
             }
 
             // draw a number to show shield strength
-            context.fillStyle = 'white';
-            context.font = '20px RetroFont';
-            let tw = context.measureText(this.shield).width;
-            context.fillText(this.shield, (this.size / 2) - (tw), 10);
+            // context.fillStyle = 'white';
+            // context.font = '20px RetroFont';
+            // let tw = context.measureText(this.shield).width;
+            // context.fillText(this.shield, (this.size / 2) - (tw), 10);
+
+            if ( drawmarkers ) {
+                context.fillStyle = 'yellow';
+                context.beginPath();
+                context.arc(0, 0, 2, 0, Math.PI * 2);
+                context.fill();
+            }
 
             context.resetTransform();
         }
@@ -200,6 +250,11 @@ window.addEventListener('load', function(){
             update(time) {
                 this.position = this.position.add( this.direction.multiply(time) );
                 this.position = wrapIfOutside(this.position, this.size);
+
+                if ( !constantspeedmode ) {
+                    this.direction = this.direction.multiply(0.99);
+                }
+
             }
 
             draw(context) {
@@ -222,6 +277,13 @@ window.addEventListener('load', function(){
                     context.stroke();
                 }
 
+                if ( drawmarkers ) {
+                    context.fillStyle = 'yellow';
+                    context.beginPath();
+                    context.arc(0, 0, 2, 0, Math.PI * 2);
+                    context.fill();
+                }
+
                 context.resetTransform();
             }
 
@@ -240,13 +302,23 @@ window.addEventListener('load', function(){
                 switch(event.code) {
                     case 'ArrowUp':
                     case 'KeyW':
-                        this.player.direction = this.player.direction.add( this.player.direction.normalize() );
+                        if ( !constantspeedmode ) {
+                            this.player.direction = this.player.direction.add( this.player.direction.normalize().multiply(5) );
+                        } else {
+                            this.player.direction = this.player.direction.add( this.player.direction.normalize() );
+                        }
                         break;
                     case 'ArrowDown':
                     case 'KeyS':
-                        this.player.direction = this.player.direction.subtract( this.player.direction.normalize() );
+                        if ( constantspeedmode ) {
+                            this.player.direction = this.player.direction.subtract( this.player.direction.normalize() );
+                        }
                         break; 
                     case 'Space':
+                        if ( !started ) {
+                            started = true;
+                            return;
+                        } 
                         this.game.projectiles.push( new Projectile(this.player.position, this.player.direction) );
                         break;
                     case 'ArrowLeft':
@@ -350,6 +422,8 @@ window.addEventListener('load', function(){
 
 
         update(time) {
+            if ( !started ) return;
+
             this.input.update(time);
             this.player.update(time);
 
@@ -366,10 +440,8 @@ window.addEventListener('load', function(){
             // check if any projectile hits any asteroid
             for (let i = 0; i < this.projectiles.length; i++) {
                 for (let j = 0; j < this.asteroids.length; j++) {
-                    let dx = this.projectiles[i].position.x - this.asteroids[j].position.x;
-                    let dy = this.projectiles[i].position.y - this.asteroids[j].position.y;
-                    let distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < this.asteroids[j].size) {
+                    let distance = this.projectiles[i].position.distanceTo(this.asteroids[j].position);
+                    if (distance < this.asteroids[j].size / 2) {
                         let friendly = this.projectiles[i].friendly;
 
                         this.projectiles.splice(i, 1);
@@ -393,10 +465,8 @@ window.addEventListener('load', function(){
                     continue;
                 }
 
-                let dx = this.projectiles[i].position.x - this.player.position.x;
-                let dy = this.projectiles[i].position.y - this.player.position.y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < this.player.size) {
+                let distance = this.projectiles[i].position.distanceTo(this.player.position);
+                if (distance < this.player.size - 2) {
                     this.player.shield -= 1;
                     if (this.player.shield <= 0) {
                         this.player.is_dead = true;
@@ -413,10 +483,8 @@ window.addEventListener('load', function(){
                 }
 
                 for (let j = 0; j < this.saucers.length; j++) {
-                    let dx = this.projectiles[i].position.x - this.saucers[j].position.x;
-                    let dy = this.projectiles[i].position.y - this.saucers[j].position.y;
-                    let distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < this.saucers[j].size) {
+                    let distance = this.projectiles[i].position.distanceTo(this.saucers[j].position);
+                    if (distance < this.saucers[j].size / 2) {
                         this.projectiles.splice(i, 1);
                         this.saucers[j].shield -= 1;
                         if (this.saucers[j].shield <= 0) {
@@ -441,22 +509,34 @@ window.addEventListener('load', function(){
             
             // check if player hits any asteroid
             for (let j = 0; j < this.asteroids.length; j++) {
-                let dx = this.player.position.x - this.asteroids[j].position.x;
-                let dy = this.player.position.y - this.asteroids[j].position.y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < this.asteroids[j].size) {
+                // is asteroid outside screen
+                if (this.asteroids[j].position.x < -this.asteroids[j].size || this.asteroids[j].position.x > this.width + this.asteroids[j].size ||
+                    this.asteroids[j].position.y < -this.asteroids[j].size || this.asteroids[j].position.y > this.height + this.asteroids[j].size) {
+                    continue;
+                }
+                // calculate distance
+                let distance = this.player.position.distanceTo(this.asteroids[j].position);
+                if (distance < this.asteroids[j].size / 2) {
+                    this.asteroids[j].crashed = true;
                     this.player.is_dead = true;
                     break;
                 }
+                
             }
 
             // check if player hits any saucer
             for (let j = 0; j < this.saucers.length; j++) {
-                let dx = this.player.position.x - this.saucers[j].position.x;
-                let dy = this.player.position.y - this.saucers[j].position.y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < this.saucers[j].size) {
-                    this.player.is_dead = true;
+                let distance = this.player.position.distanceTo(this.saucers[j].position);
+                if (distance < this.saucers[j].size / 2) {
+                    this.saucers[j].shield -= 1;
+                    this.player.shield -= 1;
+                    if (this.saucers[j].shield <= 0) {
+                        this.saucers.splice(j, 1);
+                        this.score += 100;
+                        this.createSaucer();
+                    } else if (this.player.shield <= 0) {
+                        this.player.is_dead = true;
+                    }
                     break;
                 }
             }
@@ -464,6 +544,16 @@ window.addEventListener('load', function(){
 
         draw(context) {
             this.player.draw(context);
+
+            if ( !started ) {
+                this.drawCenteredText(context, 'Asteroids', 60, canvas.height / 2 - 120);
+                this.drawCenteredText(context, 'Press Space Bar to start', 30, canvas.height / 2 - 60 );
+                
+                this.drawCenteredText(context, 'Rotate: A+D, Speed: W+S', 30, canvas.height / 2 + 80 );
+                return;
+            }
+
+            
             for (let i = 0; i < this.projectiles.length; i++) {
                 this.projectiles[i].draw(context);
             }
@@ -475,17 +565,20 @@ window.addEventListener('load', function(){
             }
             this.drawScore(context, this.score);
             if (this.player.isDead()) {
-                context.fillStyle = 'white';
-                const text = 'Game Over';
-                context.font = '80px RetroFont';
-                const textWidth = context.measureText(text).width;
-                context.fillText(text, (canvas.width / 2) - (textWidth / 2), canvas.height / 2);
+                this.drawCenteredText(context, 'Game Over', 60, canvas.height / 2 - 50);
                 // write below hit refresh to try again
                 context.font = '40px RetroFont';
                 const text2 = 'Hit refresh to try again';
                 const textWidth2 = context.measureText(text2).width;
                 context.fillText(text2, (canvas.width / 2) - (textWidth2 / 2), canvas.height / 2 + 50);
             }
+        }
+
+        drawCenteredText(context, text, size, y) {
+            context.fillStyle = 'white';
+            context.font = `${size}px RetroFont`;
+            const textWidth = context.measureText(text).width;
+            context.fillText(text, (canvas.width / 2) - (textWidth / 2), y);
         }
 
         drawScore(context, score) {
